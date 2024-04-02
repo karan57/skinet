@@ -1,3 +1,4 @@
+using API.Middleware;
 using Core.Interfaces;
 using Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
@@ -14,9 +15,11 @@ builder.Services.AddDbContext<StoreContext>(opt =>
 {
     opt.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection"));
 });
-builder.Services.AddScoped<IProductRepository, ProductRepository>(); 
+builder.Services.AddScoped<IProductRepository, ProductRepository>();
+builder.Services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
+builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
 var app = builder.Build();
-
+app.UseMiddleware<ExceptionMiddleware>();
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
@@ -25,7 +28,11 @@ if (app.Environment.IsDevelopment())
 }
 
 //app.UseHttpsRedirection();
-
+app.UseStaticFiles();
+app.UseCors(x => x
+.AllowAnyOrigin()
+.AllowAnyMethod()
+.AllowAnyHeader());
 app.UseAuthorization();
 
 app.MapControllers();
@@ -35,7 +42,7 @@ var context = services.GetRequiredService<StoreContext>();
 var logger = services.GetRequiredService<ILogger<Program>>();
 try
 {
-    //await context.Database.MigrateAsync();
+    //await context.Database.MigrateAsync(); //This will migrate any changes pending for database on lunch of application
     await StoreContextSeed.SeedAsync(context);
 }
 catch (Exception ex)
